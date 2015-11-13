@@ -6,6 +6,8 @@ parseFileSize = require './parse-file-size'
 fs = require 'fs'
 path = require 'path'
 got = require 'got'
+Datauri = require 'datauri'
+dUri = new Datauri()
 reorientCSS = require './reorient-css'
 
 module.exports = class Resource
@@ -66,6 +68,12 @@ module.exports = class Resource
             ) ||
             !Resource::isLocalPath(attributes.href || attributes['data-href'])
         )
+      when 'img'
+        @target = attributes.src || attributes['data-src']
+        return false if (
+          !options.images ||
+            !Resource::isLocalPath(attributes.src || attributes['data-src'])
+        )
       else
         return false
     return true
@@ -82,7 +90,7 @@ module.exports = class Resource
   getContentsForEmbedding: (callback) ->
 # Returns the contents of the file, but trimmed, and run through reorient-css
 # (if CSS).
-    relFilePath = (if @tagName is 'script' then (@attributes.src || @attributes['data-src']) else (@attributes.href || @attributes['data-href']))
+    relFilePath = (if @tagName is 'script' or @tagName is 'img' then (@attributes.src || @attributes['data-src']) else (@attributes.href || @attributes['data-href']))
     relFilePath = @options.parseUrl(relFilePath) if typeof @options.parseUrl is 'function'
     # console.log "relFilePath: #{relFilePath}"
     if /^http.*/.test(relFilePath)
@@ -101,10 +109,19 @@ module.exports = class Resource
         if !exists
           callback(true, @fullFilePath) # true means error (file not found)
         else
+          if @tagName is 'img'
+            dUri.on 'encoded', (@contents)=>
+              @contents = @contents.toString().trim()
+              callback()
+            dUri.on 'error', ()=>
+              console.log "gulp-embed - can`t encode image file #{@fullFilePath}"
+              callback(true, @fullFilePath)
+            dUri.encode @fullFilePath
+            return
           fs.readFile @fullFilePath, (err, @contents) =>
             throw err if err
             if @tagName is 'link'
-              @cssDirName = path.dirname (@attributes.href || @attributes['data-href'])
+              # @cssDirName = path.dirname (@attributes.href || @attributes['data-href'])
               @contents = reorientCSS(
                 @contents.toString(),{
                   from: @fullFilePath,

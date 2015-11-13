@@ -12,6 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "coffee-script": "~1.7.1",
+    "datauri": "^0.8.0",
     "got": "^4.1.1",
     "graceful-fs": "~2.0.2",
     "gulp-util": "^3.0.6",

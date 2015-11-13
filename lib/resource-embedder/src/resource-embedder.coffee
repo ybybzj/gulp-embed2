@@ -13,12 +13,26 @@ parseFileSize = require './parse-file-size'
 defaults =
   threshold: '5KB'
   stylesheets: true
+  images: false
   scripts: true
   deleteEmbeddedFiles: false
 
 indentEachLine = (str, indent) ->
   lines = str.split '\n'
   indent + lines.join "\n#{indent}"
+
+openTag = (tag)->
+  switch tag
+    when 'script', 'style'
+      "<#{tag}>"
+    when 'img'
+      "<#{tag} src=\""
+closeTag = (tag)->
+  switch tag
+    when 'script', 'style'
+      "</#{tag}>"
+    when 'img'
+      "\">"
 
 module.exports = class ResourceEmbedder
   constructor: (_options) ->
@@ -50,7 +64,9 @@ module.exports = class ResourceEmbedder
       warnings = []
 
       doEmbedding = =>
+        # console.log embeddableResources
         for own k, er of embeddableResources
+          console.log !er.body? || !er.elementEndIndex? if er.type is 'img'
           return if !er.body? || !er.elementEndIndex?
         outputMarkup = ''
         index = 0
@@ -67,11 +83,11 @@ module.exports = class ResourceEmbedder
 
           outputMarkup += (
             inputMarkup.substring(index, er.elementStartIndex) +
-            (if isAble then "<#{er.type}>" else "") +
+            (if isAble then "#{openTag(er.type)}" else "") +
             (if multiline then '\n' else '') +
             body +
             (if multiline then '\n' else '') +
-            indent + (if isAble then "</#{er.type}>" else "")
+            indent + (if isAble then "#{closeTag(er.type)}" else "")
           )
           index = er.elementEndIndex + 1
           
@@ -96,7 +112,12 @@ module.exports = class ResourceEmbedder
                 embeddableResources[thisTagId] = {}
               er = embeddableResources[thisTagId]
               er.body = (if embed is 'disable' then '<!--disable-->' else resource.contents)
-              er.type = (if tagName is 'script' then 'script' else 'style')
+              er.type = (switch tagName 
+                when 'script', 'img' 
+                  tagName 
+                when 'link'
+                  'style'
+                )
               er.path = path.resolve path.join(@options.assetRoot, resource.target)
               er.elementStartIndex = startIndexOfThisTag
             else
@@ -110,7 +131,7 @@ module.exports = class ResourceEmbedder
         onclosetag: (tagName) ->
           # console.log "onclosetag"
           switch tagName
-            when 'script', 'link'
+            when 'script', 'link', 'img'
               if !embeddableResources[tagCounter]?
                 embeddableResources[tagCounter] = {}
               er = embeddableResources[tagCounter]
@@ -127,3 +148,4 @@ module.exports = class ResourceEmbedder
             process.nextTick doEmbedding
       parser.write(inputMarkup)
       parser.end()
+
