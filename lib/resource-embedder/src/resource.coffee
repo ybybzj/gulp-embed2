@@ -126,7 +126,8 @@ module.exports = class Resource
                 @contents.toString(),{
                   from: @fullFilePath,
                   to: @options.htmlFile,
-                  resolveUrl: @options.resolveResourceUrl
+                  resolveUrl: @options.resolveResourceUrl,
+                  embedUrl: @options.embedResourceUrl
                 }
               ).css
             @contents = @contents.toString().trim()
