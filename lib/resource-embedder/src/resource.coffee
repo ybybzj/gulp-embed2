@@ -40,6 +40,7 @@ module.exports = class Resource
 # based solely on tagName, attributes, or options (NB: we're not checking the
 # threshold yet). Otherwise returns true, meaning it *might* be embeddable (as far as
 # we can tell without looking at the file contents).
+    return false if attributes['data-embed'] is 'ignore'
     switch tagName
       when 'script'
         @target = attributes.src || attributes['data-src']
